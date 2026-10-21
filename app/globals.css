@@ -305,18 +305,53 @@ body.resizing { cursor: col-resize; user-select: none; }
   .bottom { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .stat-value { font-size: 20px; }
 }
-@media (max-width: 860px) {
+/* ---------- mobile / tablet: single-column flow with a tabbed panel ---------- */
+@media (max-width: 1023px) {
   html, body { overflow: auto; }
-  .app { position: relative; display: flex; flex-direction: column; padding: 12px 16px; pointer-events: auto; min-height: 100%; }
-  .app .map { position: relative; height: 62vh; border-radius: 24px; overflow: hidden; order: 1; }
+  .app { position: relative; display: flex; flex-direction: column; gap: 12px; padding: 12px 14px 16px; pointer-events: auto; min-height: 100%; }
+  .app .map { position: relative; height: 56vh; min-height: 320px; border-radius: 24px; overflow: hidden; order: 1; }
   .atmo { display: none; }
-  .topbar { flex-wrap: wrap; order: 0; }
-  .seg button { padding: 8px 12px; }
-  .col-left { order: 2; } .col-right { order: 3; } .bottom { order: 4; }
-  .card-grow { overflow: visible; }
-  .card-list .glist { max-height: 360px; }
-  .bottom { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  /* compact header: wrap controls instead of overflowing */
+  .topbar { flex-wrap: wrap; gap: 10px; order: 0; }
+  .brand { height: 44px; padding: 6px 14px 6px 10px; }
+  .brand-name { font-size: 19px; }
+  .seg { flex: 1 1 100%; }
+  .seg button { flex: 1; padding: 11px 12px; min-height: 44px; text-align: center; }
+  .actions { flex: 1 1 100%; justify-content: space-between; }
+  .actions .seg-sm { flex: 0 0 auto; }
+  .seg-sm button { flex: none; min-height: 40px; padding: 8px 14px; }
+  .icon-btn { width: 44px; height: 44px; }
+  .pill-btn { height: 44px; }
+
+  /* mobile tabbed panel wraps the same list/alerts/detail/chart components */
+  .mobile-col { order: 2; display: flex; flex-direction: column; gap: 12px; pointer-events: auto !important; }
+  .mobile-col > * { pointer-events: auto; }
+  .mobile-tabs { width: 100%; }
+  .mobile-tabs button { flex: 1; min-height: 44px; padding: 11px 10px; text-align: center; }
+  .mobile-tabs button:disabled { opacity: 0.4; cursor: default; }
+  .mobile-panel { display: flex; flex-direction: column; gap: 12px; }
+  .mobile-panel .card-grow { overflow: visible; }
+  .mobile-panel .card-list { flex: none; }
+  .mobile-panel .glist { max-height: 60vh; }
   .col-spacer { display: none; }
   .resizer { display: none; }
+
+  /* citywide stats live in the Summary tab: readable vertical grid, no horizontal scroll */
+  .mobile-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .mobile-stats .stat { padding: 12px 14px; min-width: 0; }
+  .mobile-stats .stat-legend { grid-column: 1 / -1; }
+
   .app .maplibregl-ctrl-bottom-right { bottom: 0; right: 0; }
+}
+
+/* ---------- phones (<=640px, covers 375px): tighter spacing ---------- */
+@media (max-width: 640px) {
+  .app { padding: 10px 12px 14px; }
+  .brand-sub, .brand-sep { display: none; }
+  .app .map { height: 52vh; min-height: 300px; }
+  .stat-value { font-size: 20px; }
+
+  /* four tabs: shrink padding so Summary/Grids/Alerts/Details fit without overflow at 375px */
+  .mobile-tabs button { padding: 11px 6px; font-size: 12px; }
 }
