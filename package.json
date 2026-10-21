@@ -1,0 +1,24 @@
+{
+  "name": "denver-microgrid-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "predev": "node scripts/copy-worker.mjs",
+    "dev": "next dev",
+    "prebuild": "node scripts/copy-worker.mjs",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "maplibre-gl": "^6.15.0",
+    "next": "16.4.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5"
+  }
+}
