@@ -8,7 +8,7 @@ import {
 } from "@/lib/sim";
 import { colorAt, fmtKw, fmtKwh, GRADIENT_CSS, pct, type Metric } from "@/lib/scale";
 import AreaChart from "./AreaChart";
-import type { Theme } from "./MapView";
+import type { MapHandle, Theme } from "./MapView";
 
 const MapView = dynamic(() => import("./MapView"), { ssr: false });
 
@@ -28,6 +28,7 @@ export default function Dashboard() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [hover, setHover] = useState<{ id: number | null; x?: number; y?: number }>({ id: null });
   const [cols, setCols] = useState(COL_DEFAULT);
+  const mapRef = useRef<MapHandle | null>(null);
 
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [mobileTab, setMobileTab] = useState<"summary" | "grids" | "alerts" | "details">("summary");
@@ -92,6 +93,12 @@ export default function Dashboard() {
 
   const onHover = useCallback((id: number | null, p?: { x: number; y: number }) => setHover({ id, ...p }), []);
 
+  // re-frame the map to the full city view without reloading the page
+  const goHome = useCallback(() => {
+    setSelectedId(null);
+    mapRef.current?.home();
+  }, []);
+
   const world = worldRef.current;
   const city = useMemo(() => cityTotals(stats), [stats]);
   const alerts = useMemo(() => buildAlerts(stats), [stats]);
@@ -118,6 +125,7 @@ export default function Dashboard() {
     <div className="app" style={{ "--left-w": `${cols.left}px`, "--right-w": `${cols.right}px` } as React.CSSProperties}>
       {features && world && (
         <MapView
+          ref={mapRef}
           features={features}
           world={world}
           stats={stats}
@@ -155,6 +163,9 @@ export default function Dashboard() {
               <button key={s} className={speed === s ? "on" : ""} onClick={() => setSpeed(s)}>{s}×</button>
             ))}
           </div>
+          <button className="icon-btn" aria-label="Reset map to city view" title="Home — reset to city view" onClick={goHome}>
+            <HomeIcon />
+          </button>
           <button className="icon-btn" aria-label="Toggle theme" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
             {theme === "dark" ? <SunIcon /> : <MoonIcon />}
           </button>
@@ -479,6 +490,9 @@ const Logo = () => (
     <path d="M12 2.5 20.5 7.2v9.6L12 21.5 3.5 16.8V7.2L12 2.5Z" stroke="currentColor" strokeWidth="1.6" />
     <path d="M13 6.5 8.5 13h3l-1 4.5L15.5 11h-3l.5-4.5Z" fill="var(--accent)" />
   </svg>
+);
+const HomeIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V20h14V9.5" /></svg>
 );
 const SunIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>

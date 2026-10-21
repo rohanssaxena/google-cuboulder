@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { GridStats, Microgrid, NeighborhoodFeature, World } from "@/lib/sim";
@@ -21,6 +21,11 @@ const padding = () => {
 };
 
 export type Theme = "dark" | "light";
+
+export interface MapHandle {
+  /** Re-frame the map to the full citywide view, matching a fresh load. */
+  home: () => void;
+}
 
 interface Props {
   features: NeighborhoodFeature[];
@@ -64,11 +69,22 @@ function labelData(grids: Microgrid[]): GeoJSON.FeatureCollection {
   };
 }
 
-export default function MapView(props: Props) {
+const MapView = forwardRef<MapHandle, Props>(function MapView(props, ref) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const latest = useRef(props);
   latest.current = props;
+
+  // reset the camera to the full citywide framing, same as the initial load
+  useImperativeHandle(ref, () => ({
+    home() {
+      const map = mapRef.current;
+      if (!map) return;
+      const all = new maplibregl.LngLatBounds();
+      latest.current.world.grids.forEach((g) => all.extend(g.bounds[0]).extend(g.bounds[1]));
+      map.fitBounds(all, { padding: padding(), duration: 1100 });
+    },
+  }), []);
   const prevState = useRef<{ hover: number | null; selected: number | null }>({ hover: null, selected: null });
   const calloutRef = useRef<maplibregl.Marker | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
@@ -317,4 +333,6 @@ export default function MapView(props: Props) {
   }, [props.selectedId, props.stats, props.world]);
 
   return <div ref={container} className="map" />;
-}
+});
+
+export default MapView;
