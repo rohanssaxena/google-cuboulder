@@ -29,6 +29,9 @@ export default function Dashboard() {
   const [hover, setHover] = useState<{ id: number | null; x?: number; y?: number }>({ id: null });
   const [cols, setCols] = useState(COL_DEFAULT);
 
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const [mobileTab, setMobileTab] = useState<"summary" | "grids" | "alerts" | "details">("summary");
+
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem("cols") ?? "null");
@@ -82,12 +85,34 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, [paused, speed, features]);
 
+  // on mobile, selecting a grid surfaces its Details tab
+  useEffect(() => {
+    if (!isDesktop && selectedId !== null) setMobileTab("details");
+  }, [selectedId, isDesktop]);
+
   const onHover = useCallback((id: number | null, p?: { x: number; y: number }) => setHover({ id, ...p }), []);
 
   const world = worldRef.current;
   const city = useMemo(() => cityTotals(stats), [stats]);
   const alerts = useMemo(() => buildAlerts(stats), [stats]);
   const selected = selectedId !== null ? stats.get(selectedId) : undefined;
+
+  // citywide stat cards — shared by the desktop bottom strip and the mobile Summary tab
+  const statCards = (
+    <>
+      <Stat value={fmtKw(city.flow)} label="In circulation" delta={delta(world, "flowKw")} />
+      <Stat value={fmtKwh(city.stored)} label="Stored" sub={`of ${fmtKwh(city.cap)}`} delta={delta(world, "reserve")} />
+      <Stat value={pct(city.reserve)} label="Avg. reserve" bar={city.reserve} />
+      <Stat value={(city.batteries - city.offline).toLocaleString()} label="Batteries online" sub={`${city.offline} offline · ${city.low} low`} />
+      <Stat value={fmtKw(city.charging)} label="Charging" />
+      <Stat value={fmtKw(city.discharging)} label="Discharging" />
+      <section className="card stat stat-legend">
+        <span className="stat-label">{metric === "flow" ? "Energy in circulation" : "Battery reserve"}</span>
+        <i style={{ background: GRADIENT_CSS }} />
+        <span className="stat-scale"><span>{metric === "flow" ? "Stagnant" : "Depleted"}</span><span>{metric === "flow" ? "Circulating" : "Full"}</span></span>
+      </section>
+    </>
+  );
 
   return (
     <div className="app" style={{ "--left-w": `${cols.left}px`, "--right-w": `${cols.right}px` } as React.CSSProperties}>
@@ -140,56 +165,83 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <aside className="col col-left">
-        <Resizer side="left" width={cols.left} onResize={resizeCol} />
-        <GridList stats={stats} selectedId={selectedId} hoverId={hover.id} onPick={setSelectedId} onHover={(id) => setHover({ id })} />
+      {(() => {
+        const gridListCard = (
+          <GridList stats={stats} selectedId={selectedId} hoverId={hover.id} onPick={setSelectedId} onHover={(id) => setHover({ id })} />
+        );
+        const alertsCard = (
+          <section className="card card-grow card-alerts">
+            <div className="card-head">
+              <h2>Alerts</h2>
+              <span className={`chip ${alerts.some((a) => a.severity === "critical") ? "chip-crit" : ""}`}>{alerts.length}</span>
+            </div>
+            <div className="alerts">
+              {alerts.length === 0 && <p className="muted">All microgrids within normal range.</p>}
+              {alerts.slice(0, 12).map((a) => (
+                <button key={a.id} className={`alert sev-${a.severity}`} onClick={() => setSelectedId(a.gridId)}>
+                  <SevIcon severity={a.severity} />
+                  <span className="alert-text">
+                    <b>{a.title}</b>
+                    <span>{a.detail}</span>
+                  </span>
+                  <span className="sev-label">{a.severity}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        );
+        const detailCard = selected && world
+          ? <GridDetail s={selected} world={world} onClose={() => setSelectedId(null)} />
+          : null;
+        const chartCard = (
+          <section className="card">
+            <div className="card-head">
+              <h2>Citywide reserve · 24h</h2>
+            </div>
+            {world && <AreaChart points={world.cityHistory.map((p) => ({ t: p.t, v: p.reserve }))} format={pct} domain={[0, 1]} height={selected ? 64 : 96} />}
+            <p className="note"><InfoIcon /> {trendNote(world)}</p>
+          </section>
+        );
 
-        <section className="card card-grow card-alerts">
-          <div className="card-head">
-            <h2>Alerts</h2>
-            <span className={`chip ${alerts.some((a) => a.severity === "critical") ? "chip-crit" : ""}`}>{alerts.length}</span>
-          </div>
-          <div className="alerts">
-            {alerts.length === 0 && <p className="muted">All microgrids within normal range.</p>}
-            {alerts.slice(0, 12).map((a) => (
-              <button key={a.id} className={`alert sev-${a.severity}`} onClick={() => setSelectedId(a.gridId)}>
-                <SevIcon severity={a.severity} />
-                <span className="alert-text">
-                  <b>{a.title}</b>
-                  <span>{a.detail}</span>
-                </span>
-                <span className="sev-label">{a.severity}</span>
+
+        if (isDesktop) {
+          return (
+            <>
+              <aside className="col col-left">
+                <Resizer side="left" width={cols.left} onResize={resizeCol} />
+                {gridListCard}
+                {alertsCard}
+              </aside>
+              <aside className="col col-right">
+                <Resizer side="right" width={cols.right} onResize={resizeCol} />
+                {detailCard ?? <div className="col-spacer" />}
+                {chartCard}
+              </aside>
+            </>
+          );
+        }
+
+        return (
+          <div className="col mobile-col">
+            <div className="seg mobile-tabs" role="tablist" aria-label="Panel">
+              <button role="tab" aria-selected={mobileTab === "summary"} className={mobileTab === "summary" ? "on" : ""} onClick={() => setMobileTab("summary")}>Summary</button>
+              <button role="tab" aria-selected={mobileTab === "grids"} className={mobileTab === "grids" ? "on" : ""} onClick={() => setMobileTab("grids")}>Grids</button>
+              <button role="tab" aria-selected={mobileTab === "alerts"} className={mobileTab === "alerts" ? "on" : ""} onClick={() => setMobileTab("alerts")}>
+                Alerts{alerts.length ? ` ${alerts.length}` : ""}
               </button>
-            ))}
+              <button role="tab" aria-selected={mobileTab === "details"} className={mobileTab === "details" ? "on" : ""} onClick={() => setMobileTab("details")} disabled={!selected}>Details</button>
+            </div>
+            <div className="mobile-panel">
+              {mobileTab === "summary" && <div className="mobile-stats">{statCards}</div>}
+              {mobileTab === "grids" && gridListCard}
+              {mobileTab === "alerts" && alertsCard}
+              {mobileTab === "details" && (detailCard ? <>{detailCard}{chartCard}</> : chartCard)}
+            </div>
           </div>
-        </section>
-      </aside>
+        );
+      })()}
 
-      <aside className="col col-right">
-        <Resizer side="right" width={cols.right} onResize={resizeCol} />
-        {selected && world ? <GridDetail s={selected} world={world} onClose={() => setSelectedId(null)} /> : <div className="col-spacer" />}
-        <section className="card">
-          <div className="card-head">
-            <h2>Citywide reserve · 24h</h2>
-          </div>
-          {world && <AreaChart points={world.cityHistory.map((p) => ({ t: p.t, v: p.reserve }))} format={pct} domain={[0, 1]} height={selected ? 64 : 96} />}
-          <p className="note"><InfoIcon /> {trendNote(world)}</p>
-        </section>
-      </aside>
-
-      <footer className="bottom">
-        <Stat value={fmtKw(city.flow)} label="In circulation" delta={delta(world, "flowKw")} />
-        <Stat value={fmtKwh(city.stored)} label="Stored" sub={`of ${fmtKwh(city.cap)}`} delta={delta(world, "reserve")} />
-        <Stat value={pct(city.reserve)} label="Avg. reserve" bar={city.reserve} />
-        <Stat value={(city.batteries - city.offline).toLocaleString()} label="Batteries online" sub={`${city.offline} offline · ${city.low} low`} />
-        <Stat value={fmtKw(city.charging)} label="Charging" />
-        <Stat value={fmtKw(city.discharging)} label="Discharging" />
-        <section className="card stat stat-legend">
-          <span className="stat-label">{metric === "flow" ? "Energy in circulation" : "Battery reserve"}</span>
-          <i style={{ background: GRADIENT_CSS }} />
-          <span className="stat-scale"><span>{metric === "flow" ? "Stagnant" : "Depleted"}</span><span>{metric === "flow" ? "Circulating" : "Full"}</span></span>
-        </section>
-      </footer>
+      {isDesktop && <footer className="bottom">{statCards}</footer>}
 
       {hover.id !== null && hover.x !== undefined && stats.get(hover.id) && (
         <MapTooltip s={stats.get(hover.id)!} metric={metric} x={hover.x} y={hover.y!} />
@@ -200,6 +252,19 @@ export default function Dashboard() {
 }
 
 // ---------- pieces ----------
+
+// SSR-safe media query hook: false on first render, subscribes after mount.
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(false);
+  useEffect(() => {
+    const mql = matchMedia(query);
+    const onChange = () => setMatches(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, [query]);
+  return matches;
+}
 
 // Drag the inner edge of a side column to resize it; double-click to reset.
 function Resizer({ side, width, onResize }: { side: "left" | "right"; width: number; onResize: (side: "left" | "right", w: number | null, done?: boolean) => void }) {

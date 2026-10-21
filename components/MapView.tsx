@@ -13,7 +13,7 @@ const STYLES = {
 
 // keep the city framed between the floating side columns; on narrow screens they stack below the map instead
 const padding = () => {
-  if (window.innerWidth < 860) return 24;
+  if (window.innerWidth < 1024) return 24;
   const left = document.querySelector(".col-left")?.getBoundingClientRect().right ?? 360;
   const right = document.querySelector(".col-right")?.getBoundingClientRect().left ?? window.innerWidth - 380;
   const bottom = document.querySelector(".bottom")?.getBoundingClientRect().top ?? window.innerHeight - 140;
