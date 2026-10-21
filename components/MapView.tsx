@@ -75,7 +75,8 @@ export default function MapView(props: Props) {
 
   // ---------- init ----------
   useEffect(() => {
-    maplibregl.setWorkerUrl("/maplibre-gl-worker.mjs");
+    // resolved against the page so it also works when hosted under a subpath
+    maplibregl.setWorkerUrl(new URL("maplibre-gl-worker.mjs", document.baseURI).href);
     const { features, theme } = latest.current;
     const all = new maplibregl.LngLatBounds();
     latest.current.world.grids.forEach((g) => all.extend(g.bounds[0]).extend(g.bounds[1]));

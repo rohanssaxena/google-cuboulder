@@ -55,7 +55,7 @@ export default function Dashboard() {
   }, [theme]);
 
   useEffect(() => {
-    fetch("/data/denver-neighborhoods.json")
+    fetch(new URL("data/denver-neighborhoods.json", document.baseURI))
       .then((r) => r.json())
       .then((fc: { features: NeighborhoodFeature[] }) => {
         worldRef.current = createWorld(fc.features);

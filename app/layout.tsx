@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Gridwatch · Denver Microgrids",
   description: "Energy in circulation and battery reserve across Denver's neighborhood microgrids",
+  icons: { icon: "favicon.ico" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
